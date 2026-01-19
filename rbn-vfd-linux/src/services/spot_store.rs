@@ -77,6 +77,7 @@ impl SpotStore {
     }
 
     /// Get all spots sorted by recency
+    #[allow(dead_code)]
     pub fn get_spots_by_recency(&self) -> Vec<AggregatedSpot> {
         if let Ok(spots) = self.spots.lock() {
             let mut result: Vec<_> = spots.values().cloned().collect();
@@ -93,6 +94,7 @@ impl SpotStore {
     }
 
     /// Clear all spots
+    #[allow(dead_code)]
     pub fn clear(&self) {
         if let Ok(mut spots) = self.spots.lock() {
             spots.clear();

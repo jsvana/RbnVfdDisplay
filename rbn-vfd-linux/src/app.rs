@@ -174,10 +174,11 @@ impl eframe::App for RbnVfdApp {
             ui.horizontal(|ui| {
                 ui.label("Callsign:");
                 let response = ui.text_edit_singleline(&mut self.callsign_input);
-                if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                    if !self.is_connected {
-                        self.connect_rbn();
-                    }
+                if response.lost_focus()
+                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                    && !self.is_connected
+                {
+                    self.connect_rbn();
                 }
 
                 if self.is_connected {

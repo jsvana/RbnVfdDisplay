@@ -3,12 +3,15 @@ use std::time::Instant;
 /// Raw spot data as received from RBN telnet
 #[derive(Debug, Clone)]
 pub struct RawSpot {
+    #[allow(dead_code)]
     pub spotter_callsign: String,
     pub spotted_callsign: String,
     pub frequency_khz: f64,
     pub snr: i32,
     pub speed_wpm: i32,
+    #[allow(dead_code)]
     pub mode: String,
+    #[allow(dead_code)]
     pub timestamp: Instant,
 }
 
@@ -38,6 +41,7 @@ impl RawSpot {
 pub struct AggregatedSpot {
     pub callsign: String,
     pub frequency_khz: f64,
+    #[allow(dead_code)]
     pub center_frequency_khz: f64,
     pub highest_snr: i32,
     pub average_speed: f64,
@@ -71,6 +75,7 @@ impl AggregatedSpot {
     }
 
     /// Generate the unique key for this spot (callsign + center frequency)
+    #[allow(dead_code)]
     pub fn key(&self) -> String {
         format!("{}|{:.0}", self.callsign, self.center_frequency_khz)
     }

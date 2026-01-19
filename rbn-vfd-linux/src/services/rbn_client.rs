@@ -147,11 +147,17 @@ async fn handle_connection(
                     }
                     Ok(_) => {
                         // Handle login
-                        if !logged_in && line.to_lowercase().contains("please enter your call") {
-                            if writer.write_all(format!("{}\r\n", callsign).as_bytes()).await.is_ok() {
-                                let _ = msg_tx.send(RbnMessage::Status(format!("Logged in as {}", callsign))).await;
-                                logged_in = true;
-                            }
+                        if !logged_in
+                            && line.to_lowercase().contains("please enter your call")
+                            && writer
+                                .write_all(format!("{}\r\n", callsign).as_bytes())
+                                .await
+                                .is_ok()
+                        {
+                            let _ = msg_tx
+                                .send(RbnMessage::Status(format!("Logged in as {}", callsign)))
+                                .await;
+                            logged_in = true;
                         }
 
                         // Parse spots
@@ -179,7 +185,7 @@ fn parse_spot_line(line: &str, regex: &Regex) -> Option<RawSpot> {
     Some(RawSpot::new(
         caps.get(1)?
             .as_str()
-            .trim_end_matches(|c| c == '-' || c == '#' || c == ':')
+            .trim_end_matches(['-', '#', ':'])
             .to_string(),
         caps.get(3)?.as_str().to_string(),
         caps.get(2)?.as_str().parse().ok()?,
