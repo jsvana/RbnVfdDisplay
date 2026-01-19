@@ -30,6 +30,7 @@ impl RbnVfdApp {
         let spot_store = SpotStore::new(config.min_snr, config.max_age_minutes);
         let mut vfd_display = VfdDisplay::new();
         vfd_display.set_scroll_interval(config.scroll_interval_seconds);
+        vfd_display.set_random_char_percent(config.random_char_percent);
 
         let available_ports = VfdDisplay::available_ports();
         let selected_port = if available_ports.contains(&config.serial_port) {
@@ -309,6 +310,21 @@ impl eframe::App for RbnVfdApp {
 
                 ui.add_space(4.0);
 
+                // Random char duty cycle slider
+                ui.horizontal(|ui| {
+                    ui.label("Random Duty Cycle:");
+                    let mut percent = self.config.random_char_percent;
+                    if ui
+                        .add(egui::Slider::new(&mut percent, 0..=100).suffix("%"))
+                        .changed()
+                    {
+                        self.config.random_char_percent = percent;
+                        self.vfd_display.set_random_char_percent(percent);
+                    }
+                });
+
+                ui.add_space(4.0);
+
                 // Restore defaults button
                 if ui.button("Restore Defaults").clicked() {
                     self.config.reset_to_defaults();
@@ -316,6 +332,8 @@ impl eframe::App for RbnVfdApp {
                     self.spot_store.set_max_age_minutes(self.config.max_age_minutes);
                     self.vfd_display
                         .set_scroll_interval(self.config.scroll_interval_seconds);
+                    self.vfd_display
+                        .set_random_char_percent(self.config.random_char_percent);
                 }
             });
 

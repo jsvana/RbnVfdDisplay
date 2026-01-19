@@ -2,7 +2,7 @@ use crate::models::AggregatedSpot;
 use rand::Rng;
 use serialport::SerialPort;
 use std::io::Write;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const DISPLAY_WIDTH: usize = 20;
 const DISPLAY_LINES: usize = 2;
@@ -18,6 +18,7 @@ pub struct VfdDisplay {
     scroll_interval: Duration,
     last_update: Instant,
     force_random_mode: bool,
+    random_char_percent: u32,
     random_state: RandomCharState,
     current_lines: [String; 2],
 }
@@ -27,6 +28,7 @@ struct RandomCharState {
     char_col: usize,
     char_row: usize,
     character: char,
+    last_second: u64,
 }
 
 impl Default for RandomCharState {
@@ -36,6 +38,7 @@ impl Default for RandomCharState {
             char_col: 0,
             char_row: 0,
             character: ' ',
+            last_second: 0,
         }
     }
 }
@@ -49,6 +52,7 @@ impl VfdDisplay {
             scroll_interval: Duration::from_secs(3),
             last_update: Instant::now(),
             force_random_mode: false,
+            random_char_percent: 20,
             random_state: RandomCharState::default(),
             current_lines: [String::new(), String::new()],
         }
@@ -110,6 +114,16 @@ impl VfdDisplay {
         self.force_random_mode = enabled;
     }
 
+    /// Set random character duty cycle percentage (0-100)
+    pub fn set_random_char_percent(&mut self, percent: u32) {
+        self.random_char_percent = percent.min(100);
+    }
+
+    /// Get current random char percent
+    pub fn random_char_percent(&self) -> u32 {
+        self.random_char_percent
+    }
+
     /// Clear the display
     pub fn clear(&mut self) {
         if let Some(ref mut port) = self.port {
@@ -160,16 +174,18 @@ impl VfdDisplay {
             return;
         }
 
+        // Random mode updates on its own timing (duty cycle within each second)
+        if self.force_random_mode || spots.is_empty() {
+            self.update_random_mode();
+            return;
+        }
+
+        // Spot display uses scroll interval
         let now = Instant::now();
         if now.duration_since(self.last_update) < self.scroll_interval {
             return;
         }
         self.last_update = now;
-
-        if self.force_random_mode || spots.is_empty() {
-            self.update_random_mode();
-            return;
-        }
 
         match spots.len() {
             1 => {
@@ -192,12 +208,21 @@ impl VfdDisplay {
     }
 
     fn update_random_mode(&mut self) {
-        let mut rng = rand::thread_rng();
+        // Get current time info
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
+        let current_second = now.as_secs();
+        let ms_in_second = (now.as_millis() % 1000) as u32;
 
-        // 20% chance to show a character
-        self.random_state.showing_char = rng.gen::<f32>() < 0.2;
+        // Calculate threshold: e.g., 20% duty cycle = first 200ms of each second
+        let threshold_ms = self.random_char_percent * 10;
+        let should_show = ms_in_second < threshold_ms && self.random_char_percent > 0;
 
-        if self.random_state.showing_char {
+        // Check if this is a new second - generate new random char and position
+        if current_second != self.random_state.last_second {
+            self.random_state.last_second = current_second;
+            let mut rng = rand::thread_rng();
             // Generate random character (A-Z, 0-9)
             self.random_state.character = if rng.gen::<bool>() {
                 rng.gen_range(b'A'..=b'Z') as char
@@ -206,6 +231,12 @@ impl VfdDisplay {
             };
             self.random_state.char_col = rng.gen_range(0..DISPLAY_WIDTH);
             self.random_state.char_row = rng.gen_range(0..DISPLAY_LINES);
+        }
+
+        // Handle transitions
+        if should_show && !self.random_state.showing_char {
+            // Transition to showing character
+            self.random_state.showing_char = true;
 
             // Create display with single character
             let mut line0 = " ".repeat(DISPLAY_WIDTH);
@@ -223,9 +254,10 @@ impl VfdDisplay {
                 );
             }
 
-            self.write_line(0, &line0);
-            self.write_line(1, &line1);
-        } else {
+            self.write_display(&line0, &line1);
+        } else if !should_show && self.random_state.showing_char {
+            // Transition to blank
+            self.random_state.showing_char = false;
             self.clear();
         }
     }

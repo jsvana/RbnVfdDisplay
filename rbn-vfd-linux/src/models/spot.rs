@@ -81,22 +81,23 @@ impl AggregatedSpot {
     }
 
     /// Format for VFD display (max 20 characters)
-    /// Format: "14033.0 WO6W 24"
+    /// Format: "FFFFF.F WW CCCCCCCCC" (freq aligned at decimal, WPM right-aligned, call left-aligned)
+    /// Example: "14033.0 22 WO6W     "
     pub fn to_display_string(&self) -> String {
-        let freq_str = format!("{:.1}", self.frequency_khz);
-        let speed_str = format!("{}", self.average_speed.round() as i32);
-
-        // Calculate available space for callsign
-        // Format: "FREQ.F CALL SPD"
-        let used_chars = freq_str.len() + 1 + speed_str.len() + 1;
-        let call_max_len = 20_usize.saturating_sub(used_chars);
-
-        let call_str = if self.callsign.len() <= call_max_len {
-            &self.callsign
+        // Fixed widths: 7 freq + 1 space + 2 wpm + 1 space + 9 call = 20 chars
+        // Frequency: right-aligned with decimal at position 5
+        // WPM: right-aligned in 2 chars
+        // Callsign: left-aligned, truncated to 9 chars
+        let call = if self.callsign.len() > 9 {
+            &self.callsign[..9]
         } else {
-            &self.callsign[..call_max_len]
+            &self.callsign
         };
-
-        format!("{} {} {}", freq_str, call_str, speed_str)
+        format!(
+            "{:7.1} {:2} {:<9}",
+            self.frequency_khz,
+            self.average_speed.round() as i32,
+            call
+        )
     }
 }

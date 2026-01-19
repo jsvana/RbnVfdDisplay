@@ -10,6 +10,8 @@ pub struct Config {
     pub min_snr: i32,
     pub max_age_minutes: u32,
     pub scroll_interval_seconds: u32,
+    /// Percentage chance (0-100) to show random character when idle
+    pub random_char_percent: u32,
 }
 
 impl Default for Config {
@@ -20,6 +22,7 @@ impl Default for Config {
             min_snr: 10,
             max_age_minutes: 10,
             scroll_interval_seconds: 3,
+            random_char_percent: 20,
         }
     }
 }
@@ -64,6 +67,11 @@ impl Config {
                 .ok()
                 .flatten()
                 .unwrap_or(3) as u32,
+            random_char_percent: ini
+                .getint("display", "random_char_percent")
+                .ok()
+                .flatten()
+                .unwrap_or(20) as u32,
         }
     }
 
@@ -93,6 +101,11 @@ impl Config {
             "scroll_interval_seconds",
             Some(self.scroll_interval_seconds.to_string()),
         );
+        ini.set(
+            "display",
+            "random_char_percent",
+            Some(self.random_char_percent.to_string()),
+        );
 
         ini.write(&path)
             .map_err(|e| format!("Failed to write config: {}", e))
@@ -104,6 +117,7 @@ impl Config {
         self.min_snr = defaults.min_snr;
         self.max_age_minutes = defaults.max_age_minutes;
         self.scroll_interval_seconds = defaults.scroll_interval_seconds;
+        self.random_char_percent = defaults.random_char_percent;
         // Keep callsign and serial_port as-is
     }
 }
