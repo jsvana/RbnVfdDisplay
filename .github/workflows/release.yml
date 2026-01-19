@@ -21,13 +21,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build -c Release --no-restore
+        run: dotnet restore RbnVfdDisplay/RbnVfdDisplay.csproj
 
       - name: Publish
-        run: dotnet publish -c Release -r win-x64 --self-contained true -o ./publish
+        run: dotnet publish RbnVfdDisplay/RbnVfdDisplay.csproj -c Release -r win-x64 --self-contained true -o ./publish
 
       - name: Zip release
         run: Compress-Archive -Path ./publish/* -DestinationPath RbnVfdDisplay-win-x64.zip
