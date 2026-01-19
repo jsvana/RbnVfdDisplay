@@ -3,6 +3,9 @@ use crate::services::{RbnClient, RbnMessage, SpotStore, VfdDisplay};
 use eframe::egui;
 use std::time::{Duration, Instant};
 
+/// Max lines to keep in raw data log
+const RAW_DATA_LOG_MAX_LINES: usize = 500;
+
 /// Main application state
 pub struct RbnVfdApp {
     config: Config,
@@ -16,6 +19,8 @@ pub struct RbnVfdApp {
     is_connected: bool,
     last_purge: Instant,
     last_port_refresh: Instant,
+    /// Raw telnet data log for debugging
+    raw_data_log: Vec<String>,
 }
 
 impl RbnVfdApp {
@@ -45,6 +50,7 @@ impl RbnVfdApp {
             is_connected: false,
             last_purge: Instant::now(),
             last_port_refresh: Instant::now(),
+            raw_data_log: Vec::new(),
         }
     }
 
@@ -126,6 +132,15 @@ impl RbnVfdApp {
                 RbnMessage::Disconnected => {
                     self.is_connected = false;
                     should_disconnect = true;
+                }
+                RbnMessage::RawData { data, received } => {
+                    let prefix = if received { "<<" } else { ">>" };
+                    let line = format!("{} {}", prefix, data.trim_end());
+                    self.raw_data_log.push(line);
+                    // Keep log from growing too large
+                    if self.raw_data_log.len() > RAW_DATA_LOG_MAX_LINES {
+                        self.raw_data_log.remove(0);
+                    }
                 }
             }
         }
@@ -341,6 +356,42 @@ impl eframe::App for RbnVfdApp {
                                 .monospace()
                                 .size(16.0),
                         );
+                    });
+            });
+
+            ui.separator();
+
+            // Raw telnet data log
+            ui.collapsing("Raw Telnet Data", |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{} lines", self.raw_data_log.len()));
+                    if ui.button("Clear").clicked() {
+                        self.raw_data_log.clear();
+                    }
+                });
+
+                egui::ScrollArea::vertical()
+                    .max_height(200.0)
+                    .stick_to_bottom(true)
+                    .show(ui, |ui| {
+                        egui::Frame::new()
+                            .fill(egui::Color32::from_rgb(20, 20, 20))
+                            .inner_margin(egui::Margin::same(4))
+                            .show(ui, |ui| {
+                                for line in &self.raw_data_log {
+                                    let color = if line.starts_with("<<") {
+                                        egui::Color32::from_rgb(100, 255, 100) // received = green
+                                    } else {
+                                        egui::Color32::from_rgb(100, 100, 255) // sent = blue
+                                    };
+                                    ui.label(
+                                        egui::RichText::new(line)
+                                            .monospace()
+                                            .size(11.0)
+                                            .color(color),
+                                    );
+                                }
+                            });
                     });
             });
 

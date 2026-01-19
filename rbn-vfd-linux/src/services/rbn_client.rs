@@ -13,6 +13,8 @@ pub enum RbnMessage {
     Status(String),
     Spot(RawSpot),
     Disconnected,
+    /// Raw data for debugging (direction: true = received, false = sent)
+    RawData { data: String, received: bool },
 }
 
 /// Commands sent to the RBN client
@@ -146,18 +148,32 @@ async fn handle_connection(
                         return;
                     }
                     Ok(_) => {
+                        // Send raw received data for debugging
+                        let _ = msg_tx
+                            .send(RbnMessage::RawData {
+                                data: line.clone(),
+                                received: true,
+                            })
+                            .await;
+
                         // Handle login
                         if !logged_in
                             && line.to_lowercase().contains("please enter your callsign")
-                            && writer
-                                .write_all(format!("{}\r\n", callsign).as_bytes())
-                                .await
-                                .is_ok()
                         {
-                            let _ = msg_tx
-                                .send(RbnMessage::Status(format!("Logged in as {}", callsign)))
-                                .await;
-                            logged_in = true;
+                            let send_data = format!("{}\r\n", callsign);
+                            if writer.write_all(send_data.as_bytes()).await.is_ok() {
+                                // Send raw sent data for debugging
+                                let _ = msg_tx
+                                    .send(RbnMessage::RawData {
+                                        data: send_data,
+                                        received: false,
+                                    })
+                                    .await;
+                                let _ = msg_tx
+                                    .send(RbnMessage::Status(format!("Logged in as {}", callsign)))
+                                    .await;
+                                logged_in = true;
+                            }
                         }
 
                         // Parse spots
