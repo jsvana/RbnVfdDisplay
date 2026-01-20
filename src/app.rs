@@ -27,7 +27,7 @@ impl RbnVfdApp {
     /// Create a new application instance
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let config = Config::load();
-        let spot_store = SpotStore::new(config.min_snr, config.max_age_minutes);
+        let spot_store = SpotStore::new();
         let mut vfd_display = VfdDisplay::new();
         vfd_display.set_scroll_interval(config.scroll_interval_seconds);
         vfd_display.set_random_char_percent(config.random_char_percent);
@@ -168,7 +168,8 @@ impl RbnVfdApp {
         }
 
         // Update VFD display
-        let spots = self.spot_store.get_spots_by_frequency();
+        let max_age = Duration::from_secs(self.config.max_age_minutes as u64 * 60);
+        let spots = self.spot_store.get_filtered_spots(self.config.min_snr, max_age);
         self.vfd_display.update(&spots);
     }
 }
@@ -268,7 +269,6 @@ impl eframe::App for RbnVfdApp {
                         .changed()
                     {
                         self.config.min_snr = snr;
-                        self.spot_store.set_min_snr(snr);
                     }
                 });
 
@@ -277,14 +277,13 @@ impl eframe::App for RbnVfdApp {
                 // Max age radio buttons
                 ui.horizontal(|ui| {
                     ui.label("Max Age:");
-                    let age_options = [5u32, 10, 15, 30];
+                    let age_options = [1u32, 5, 10, 15, 30];
                     for age in age_options {
                         if ui
                             .radio(self.config.max_age_minutes == age, format!("{} min", age))
                             .clicked()
                         {
                             self.config.max_age_minutes = age;
-                            self.spot_store.set_max_age_minutes(age);
                         }
                     }
                 });
@@ -339,8 +338,6 @@ impl eframe::App for RbnVfdApp {
                 // Restore defaults button
                 if ui.button("Restore Defaults").clicked() {
                     self.config.reset_to_defaults();
-                    self.spot_store.set_min_snr(self.config.min_snr);
-                    self.spot_store.set_max_age_minutes(self.config.max_age_minutes);
                     self.vfd_display
                         .set_scroll_interval(self.config.scroll_interval_seconds);
                     self.vfd_display
@@ -437,7 +434,8 @@ impl eframe::App for RbnVfdApp {
             egui::ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
-                    let spots = self.spot_store.get_spots_by_frequency();
+                    let max_age = Duration::from_secs(self.config.max_age_minutes as u64 * 60);
+                    let spots = self.spot_store.get_filtered_spots(self.config.min_snr, max_age);
                     if spots.is_empty() {
                         ui.label("No spots yet. Connect to RBN to receive spots.");
                     } else {
