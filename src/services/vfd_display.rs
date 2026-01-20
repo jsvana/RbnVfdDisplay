@@ -120,6 +120,7 @@ impl VfdDisplay {
     }
 
     /// Get current random char percent
+    #[allow(dead_code)]
     pub fn random_char_percent(&self) -> u32 {
         self.random_char_percent
     }

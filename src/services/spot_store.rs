@@ -57,7 +57,8 @@ impl SpotStore {
         }
     }
 
-    /// Get all spots sorted by frequency (no filtering, used internally)
+    /// Get all spots sorted by frequency (no filtering, utility method)
+    #[allow(dead_code)]
     pub fn get_spots_by_frequency(&self) -> Vec<AggregatedSpot> {
         if let Ok(spots) = self.spots.lock() {
             let mut result: Vec<_> = spots.values().cloned().collect();
