@@ -7,41 +7,17 @@ use std::time::{Duration, Instant};
 #[derive(Clone)]
 pub struct SpotStore {
     spots: Arc<Mutex<HashMap<String, AggregatedSpot>>>,
-    min_snr: Arc<Mutex<i32>>,
-    max_age: Arc<Mutex<Duration>>,
 }
 
 impl SpotStore {
-    pub fn new(min_snr: i32, max_age_minutes: u32) -> Self {
+    pub fn new() -> Self {
         Self {
             spots: Arc::new(Mutex::new(HashMap::new())),
-            min_snr: Arc::new(Mutex::new(min_snr)),
-            max_age: Arc::new(Mutex::new(Duration::from_secs(max_age_minutes as u64 * 60))),
         }
     }
 
-    /// Set minimum SNR filter
-    pub fn set_min_snr(&self, snr: i32) {
-        if let Ok(mut min) = self.min_snr.lock() {
-            *min = snr;
-        }
-    }
-
-    /// Set maximum age for spots
-    pub fn set_max_age_minutes(&self, minutes: u32) {
-        if let Ok(mut age) = self.max_age.lock() {
-            *age = Duration::from_secs(minutes as u64 * 60);
-        }
-    }
-
-    /// Add or update a spot
+    /// Add or update a spot (stores all spots, filtering happens at retrieval)
     pub fn add_spot(&self, raw: RawSpot) {
-        // Check SNR filter
-        let min_snr = self.min_snr.lock().map(|m| *m).unwrap_or(0);
-        if raw.snr < min_snr {
-            return;
-        }
-
         let center_freq = raw.frequency_khz.round();
         let key = format!("{}|{:.0}", raw.spotted_callsign, center_freq);
 
@@ -55,17 +31,33 @@ impl SpotStore {
         }
     }
 
-    /// Remove spots older than max age
+    /// Remove spots older than 30 minutes (hard limit for memory management)
     pub fn purge_old_spots(&self) {
-        let max_age = self.max_age.lock().map(|m| *m).unwrap_or(Duration::from_secs(600));
-        let cutoff = Instant::now() - max_age;
+        let cutoff = Instant::now() - Duration::from_secs(30 * 60);
 
         if let Ok(mut spots) = self.spots.lock() {
             spots.retain(|_, spot| spot.last_spotted >= cutoff);
         }
     }
 
-    /// Get all spots sorted by frequency
+    /// Get spots filtered by min_snr and max_age, sorted by frequency
+    pub fn get_filtered_spots(&self, min_snr: i32, max_age: Duration) -> Vec<AggregatedSpot> {
+        let cutoff = Instant::now() - max_age;
+
+        if let Ok(spots) = self.spots.lock() {
+            let mut result: Vec<_> = spots
+                .values()
+                .filter(|spot| spot.highest_snr >= min_snr && spot.last_spotted >= cutoff)
+                .cloned()
+                .collect();
+            result.sort_by(|a, b| a.frequency_khz.partial_cmp(&b.frequency_khz).unwrap());
+            result
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// Get all spots sorted by frequency (no filtering, used internally)
     pub fn get_spots_by_frequency(&self) -> Vec<AggregatedSpot> {
         if let Ok(spots) = self.spots.lock() {
             let mut result: Vec<_> = spots.values().cloned().collect();
