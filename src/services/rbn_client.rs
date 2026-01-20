@@ -14,7 +14,10 @@ pub enum RbnMessage {
     Spot(RawSpot),
     Disconnected,
     /// Raw data for debugging (direction: true = received, false = sent)
-    RawData { data: String, received: bool },
+    RawData {
+        data: String,
+        received: bool,
+    },
 }
 
 /// Commands sent to the RBN client
@@ -66,10 +69,9 @@ impl RbnClient {
 }
 
 async fn rbn_task(mut cmd_rx: mpsc::Receiver<RbnCommand>, msg_tx: mpsc::Sender<RbnMessage>) {
-    let spot_regex = Regex::new(
-        r"DX de (\S+):\s+(\d+\.?\d*)\s+(\S+)\s+(\w+)\s+(\d+)\s+dB\s+(\d+)\s+WPM",
-    )
-    .expect("Invalid regex");
+    let spot_regex =
+        Regex::new(r"DX de (\S+):\s+(\d+\.?\d*)\s+(\S+)\s+(\w+)\s+(\d+)\s+dB\s+(\d+)\s+WPM")
+            .expect("Invalid regex");
 
     loop {
         // Wait for a connect command

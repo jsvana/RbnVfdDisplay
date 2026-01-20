@@ -169,7 +169,9 @@ impl RbnVfdApp {
 
         // Update VFD display
         let max_age = Duration::from_secs(self.config.max_age_minutes as u64 * 60);
-        let spots = self.spot_store.get_filtered_spots(self.config.min_snr, max_age);
+        let spots = self
+            .spot_store
+            .get_filtered_spots(self.config.min_snr, max_age);
         self.vfd_display.update(&spots);
     }
 }
@@ -185,7 +187,11 @@ fn draw_age_ring(ui: &mut egui::Ui, fraction: f32) {
     let color = egui::Color32::from_rgb(0, 200, 0);
 
     // Draw background circle (dim)
-    painter.circle_stroke(center, radius, egui::Stroke::new(2.0, egui::Color32::from_rgb(40, 40, 40)));
+    painter.circle_stroke(
+        center,
+        radius,
+        egui::Stroke::new(2.0, egui::Color32::from_rgb(40, 40, 40)),
+    );
 
     // Draw arc for remaining time (1.0 - fraction = remaining)
     let remaining = 1.0 - fraction;
@@ -355,7 +361,10 @@ impl eframe::App for RbnVfdApp {
                 // Force random mode checkbox
                 ui.horizontal(|ui| {
                     let mut force_random = self.vfd_display.is_in_random_mode();
-                    if ui.checkbox(&mut force_random, "Force random mode").clicked() {
+                    if ui
+                        .checkbox(&mut force_random, "Force random mode")
+                        .clicked()
+                    {
                         self.vfd_display.set_force_random_mode(force_random);
                     }
                 });
@@ -414,16 +423,8 @@ impl eframe::App for RbnVfdApp {
                             format!("{:20}", preview[1])
                         };
 
-                        ui.label(
-                            egui::RichText::new(&line1)
-                                .monospace()
-                                .size(16.0),
-                        );
-                        ui.label(
-                            egui::RichText::new(&line2)
-                                .monospace()
-                                .size(16.0),
-                        );
+                        ui.label(egui::RichText::new(&line1).monospace().size(16.0));
+                        ui.label(egui::RichText::new(&line2).monospace().size(16.0));
                     });
             });
 
@@ -477,7 +478,9 @@ impl eframe::App for RbnVfdApp {
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     let max_age = Duration::from_secs(self.config.max_age_minutes as u64 * 60);
-                    let spots = self.spot_store.get_filtered_spots(self.config.min_snr, max_age);
+                    let spots = self
+                        .spot_store
+                        .get_filtered_spots(self.config.min_snr, max_age);
                     if spots.is_empty() {
                         ui.label("No spots yet. Connect to RBN to receive spots.");
                     } else {
@@ -550,13 +553,11 @@ impl eframe::App for RbnVfdApp {
                                 } else {
                                     format!("{:>3}m", age_secs / 60)
                                 };
-                                ui.label(
-                                    egui::RichText::new(age_text)
-                                        .monospace(),
-                                );
+                                ui.label(egui::RichText::new(age_text).monospace());
 
                                 // Ring indicator
-                                let max_age = Duration::from_secs(self.config.max_age_minutes as u64 * 60);
+                                let max_age =
+                                    Duration::from_secs(self.config.max_age_minutes as u64 * 60);
                                 let fraction = spot.age_fraction(max_age);
                                 draw_age_ring(ui, fraction);
                             });
