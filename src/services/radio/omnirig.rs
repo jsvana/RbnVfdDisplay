@@ -66,10 +66,11 @@ impl RadioController for OmniRigController {
 
     fn connect(&mut self) -> RadioResult<()> {
         // Initialize COM if not already done
-        let _com_guard = w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)
-            .map_err(|e| {
-                RadioError::ConnectionFailed(format!("Failed to initialize COM: {}", e))
-            })?;
+        let _com_guard =
+            w::CoInitializeEx(co::COINIT::APARTMENTTHREADED | co::COINIT::DISABLE_OLE1DDE)
+                .map_err(|e| {
+                    RadioError::ConnectionFailed(format!("Failed to initialize COM: {}", e))
+                })?;
 
         // Get CLSID for OmniRig
         let clsid = w::CLSIDFromProgID("Omnirig.OmnirigX").map_err(|e| {
@@ -92,9 +93,9 @@ impl RadioController for OmniRigController {
 
         // Get the rig object (Rig1 or Rig2)
         let rig_name = self.rig_property_name();
-        let rig_variant = omnirig
-            .invoke_get(rig_name, &[])
-            .map_err(|e| RadioError::ConnectionFailed(format!("Failed to get {}: {}", rig_name, e)))?;
+        let rig_variant = omnirig.invoke_get(rig_name, &[]).map_err(|e| {
+            RadioError::ConnectionFailed(format!("Failed to get {}: {}", rig_name, e))
+        })?;
 
         let rig = rig_variant.idispatch().map_err(|e| {
             RadioError::ConnectionFailed(format!("Failed to get {} interface: {}", rig_name, e))
@@ -112,26 +113,21 @@ impl RadioController for OmniRigController {
     }
 
     fn tune(&mut self, frequency_khz: f64, mode: RadioMode) -> RadioResult<()> {
-        let rig = self
-            .rig
-            .as_ref()
-            .ok_or(RadioError::NotConnected)?;
+        let rig = self.rig.as_ref().ok_or(RadioError::NotConnected)?;
 
         // Convert frequency from kHz to Hz
         let freq_hz = (frequency_khz * 1000.0) as i32;
 
         // Set frequency (FreqA property)
         let freq_variant = w::Variant::new_i32(freq_hz);
-        rig.invoke_put("FreqA", &freq_variant).map_err(|e| {
-            RadioError::CommandFailed(format!("Failed to set frequency: {}", e))
-        })?;
+        rig.invoke_put("FreqA", &freq_variant)
+            .map_err(|e| RadioError::CommandFailed(format!("Failed to set frequency: {}", e)))?;
 
         // Set mode
         let mode_value = Self::mode_to_omnirig(mode);
         let mode_variant = w::Variant::new_i32(mode_value);
-        rig.invoke_put("Mode", &mode_variant).map_err(|e| {
-            RadioError::CommandFailed(format!("Failed to set mode: {}", e))
-        })?;
+        rig.invoke_put("Mode", &mode_variant)
+            .map_err(|e| RadioError::CommandFailed(format!("Failed to set mode: {}", e)))?;
 
         Ok(())
     }
