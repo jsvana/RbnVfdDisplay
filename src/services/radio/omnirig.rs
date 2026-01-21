@@ -82,13 +82,14 @@ impl RadioController for OmniRigController {
 
         // Create OmniRig instance
         let omnirig: w::IDispatch =
-            w::CoCreateInstance(&clsid, None::<&mut w::IUnknown>, co::CLSCTX::LOCAL_SERVER)
-                .map_err(|e| {
+            w::CoCreateInstance(&clsid, None::<&w::IUnknown>, co::CLSCTX::LOCAL_SERVER).map_err(
+                |e| {
                     RadioError::ConnectionFailed(format!(
                         "Failed to create OmniRig instance. Is OmniRig running? Error: {}",
                         e
                     ))
-                })?;
+                },
+            )?;
 
         // Get the rig object (Rig1 or Rig2)
         let rig_name = self.rig_property_name();
@@ -96,12 +97,16 @@ impl RadioController for OmniRigController {
             RadioError::ConnectionFailed(format!("Failed to get {}: {}", rig_name, e))
         })?;
 
-        let rig = rig_variant.idispatch().ok_or_else(|| {
-            RadioError::ConnectionFailed(format!(
-                "Failed to get {} interface: not an IDispatch",
-                rig_name
-            ))
-        })?;
+        // Extract IDispatch from Variant
+        let rig = match rig_variant {
+            w::Variant::Dispatch(disp) => disp,
+            _ => {
+                return Err(RadioError::ConnectionFailed(format!(
+                    "Failed to get {} interface: not an IDispatch",
+                    rig_name
+                )))
+            }
+        };
 
         self.omnirig = Some(omnirig);
         self.rig = Some(rig);
@@ -121,13 +126,13 @@ impl RadioController for OmniRigController {
         let freq_hz = (frequency_khz * 1000.0) as i32;
 
         // Set frequency (FreqA property)
-        let freq_variant = w::VARIANT::new_i32(freq_hz);
+        let freq_variant = w::Variant::I4(freq_hz);
         rig.invoke_put("FreqA", &freq_variant)
             .map_err(|e| RadioError::CommandFailed(format!("Failed to set frequency: {}", e)))?;
 
         // Set mode
         let mode_value = Self::mode_to_omnirig(mode);
-        let mode_variant = w::VARIANT::new_i32(mode_value);
+        let mode_variant = w::Variant::I4(mode_value);
         rig.invoke_put("Mode", &mode_variant)
             .map_err(|e| RadioError::CommandFailed(format!("Failed to set mode: {}", e)))?;
 
