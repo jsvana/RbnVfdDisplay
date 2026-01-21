@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::services::radio::{self, RadioController, RadioMode};
 use crate::services::{RbnClient, RbnMessage, SpotStore, VfdDisplay};
 use eframe::egui;
 use std::time::{Duration, Instant};
@@ -23,12 +24,17 @@ pub struct RbnVfdApp {
     raw_data_log: Vec<String>,
     /// Currently selected spot for tuning
     selected_spot: Option<crate::models::AggregatedSpot>,
+    /// Radio controller for CAT control
+    radio_controller: Box<dyn RadioController>,
+    /// Error message to show in popup
+    radio_error: Option<String>,
 }
 
 impl RbnVfdApp {
     /// Create a new application instance
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
         let config = Config::load();
+        let radio_controller = radio::create_controller(&config.radio);
         let spot_store = SpotStore::new();
         let mut vfd_display = VfdDisplay::new();
         vfd_display.set_scroll_interval(config.scroll_interval_seconds);
@@ -55,6 +61,8 @@ impl RbnVfdApp {
             last_port_refresh: Instant::now(),
             raw_data_log: Vec::new(),
             selected_spot: None,
+            radio_controller,
+            radio_error: None,
         }
     }
 
@@ -108,6 +116,30 @@ impl RbnVfdApp {
     fn close_vfd(&mut self) {
         self.vfd_display.close();
         self.status_message = "VFD closed".to_string();
+    }
+
+    /// Tune the radio to the selected spot
+    fn tune_to_selected(&mut self) {
+        let Some(spot) = &self.selected_spot else {
+            return;
+        };
+
+        // Get mode from the spot (we need to store mode in AggregatedSpot)
+        // For now, default to CW since RBN is primarily CW
+        let mode = RadioMode::Cw;
+
+        match self.radio_controller.tune(spot.frequency_khz, mode) {
+            Ok(()) => {
+                self.status_message = format!(
+                    "Tuned to {:.1} kHz {}",
+                    spot.frequency_khz,
+                    mode.to_rigctld_mode()
+                );
+            }
+            Err(e) => {
+                self.radio_error = Some(e.to_string());
+            }
+        }
     }
 
     /// Process incoming RBN messages
