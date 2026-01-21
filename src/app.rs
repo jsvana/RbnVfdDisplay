@@ -124,9 +124,7 @@ impl RbnVfdApp {
             return;
         };
 
-        // Get mode from the spot (we need to store mode in AggregatedSpot)
-        // For now, default to CW since RBN is primarily CW
-        let mode = RadioMode::Cw;
+        let mode = RadioMode::from_rbn_mode(&spot.mode);
 
         match self.radio_controller.tune(spot.frequency_khz, mode) {
             Ok(()) => {
