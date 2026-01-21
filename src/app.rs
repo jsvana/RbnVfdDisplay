@@ -21,6 +21,8 @@ pub struct RbnVfdApp {
     last_port_refresh: Instant,
     /// Raw telnet data log for debugging
     raw_data_log: Vec<String>,
+    /// Currently selected spot for tuning
+    selected_spot: Option<crate::models::AggregatedSpot>,
 }
 
 impl RbnVfdApp {
@@ -52,6 +54,7 @@ impl RbnVfdApp {
             last_purge: Instant::now(),
             last_port_refresh: Instant::now(),
             raw_data_log: Vec::new(),
+            selected_spot: None,
         }
     }
 
@@ -520,8 +523,23 @@ impl eframe::App for RbnVfdApp {
 
                         ui.separator();
 
-                        for spot in spots {
-                            ui.horizontal(|ui| {
+                        for spot in &spots {
+                            let is_selected = self
+                                .selected_spot
+                                .as_ref()
+                                .map(|s| s.callsign == spot.callsign && (s.frequency_khz - spot.frequency_khz).abs() < 0.5)
+                                .unwrap_or(false);
+
+                            let response = ui.horizontal(|ui| {
+                                // Highlight selected row
+                                if is_selected {
+                                    ui.painter().rect_filled(
+                                        ui.max_rect(),
+                                        0.0,
+                                        egui::Color32::from_rgb(40, 60, 80),
+                                    );
+                                }
+
                                 ui.label(
                                     egui::RichText::new(format!("{:>10.1}", spot.frequency_khz))
                                         .monospace(),
@@ -561,6 +579,17 @@ impl eframe::App for RbnVfdApp {
                                 let fraction = spot.age_fraction(max_age);
                                 draw_age_ring(ui, fraction);
                             });
+
+                            // Handle click to select
+                            if response.response.interact(egui::Sense::click()).clicked() {
+                                self.selected_spot = Some(spot.clone());
+                            }
+
+                            // Handle double-click to tune
+                            if response.response.interact(egui::Sense::click()).double_clicked() {
+                                self.selected_spot = Some(spot.clone());
+                                // TODO: Trigger tune action
+                            }
                         }
                     }
                 });
