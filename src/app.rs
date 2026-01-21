@@ -607,63 +607,46 @@ impl eframe::App for RbnVfdApp {
                                 .map(|s| s.callsign == spot.callsign && (s.frequency_khz - spot.frequency_khz).abs() < 0.5)
                                 .unwrap_or(false);
 
+                            // Build the row text
+                            let age_secs = spot.age_seconds();
+                            let age_text = if age_secs < 60 {
+                                format!("{:>3}s", age_secs)
+                            } else {
+                                format!("{:>3}m", age_secs / 60)
+                            };
+                            let row_text = format!(
+                                "{:>10.1} {:<10} {:>4} {:>5} {:>5} {}",
+                                spot.frequency_khz,
+                                spot.callsign,
+                                spot.highest_snr,
+                                spot.average_speed.round() as i32,
+                                spot.spot_count,
+                                age_text
+                            );
+
+                            // Use selectable_label for proper click handling
                             let response = ui.horizontal(|ui| {
-                                // Highlight selected row
-                                if is_selected {
-                                    ui.painter().rect_filled(
-                                        ui.max_rect(),
-                                        0.0,
-                                        egui::Color32::from_rgb(40, 60, 80),
-                                    );
-                                }
-
-                                ui.label(
-                                    egui::RichText::new(format!("{:>10.1}", spot.frequency_khz))
-                                        .monospace(),
+                                let response = ui.selectable_label(
+                                    is_selected,
+                                    egui::RichText::new(&row_text).monospace(),
                                 );
-                                ui.label(
-                                    egui::RichText::new(format!("{:<10}", spot.callsign))
-                                        .monospace(),
-                                );
-                                ui.label(
-                                    egui::RichText::new(format!("{:>4}", spot.highest_snr))
-                                        .monospace(),
-                                );
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "{:>5}",
-                                        spot.average_speed.round() as i32
-                                    ))
-                                    .monospace(),
-                                );
-                                ui.label(
-                                    egui::RichText::new(format!("{:>5}", spot.spot_count))
-                                        .monospace(),
-                                );
-
-                                // Age display
-                                let age_secs = spot.age_seconds();
-                                let age_text = if age_secs < 60 {
-                                    format!("{:>3}s", age_secs)
-                                } else {
-                                    format!("{:>3}m", age_secs / 60)
-                                };
-                                ui.label(egui::RichText::new(age_text).monospace());
 
                                 // Ring indicator
                                 let max_age =
                                     Duration::from_secs(self.config.max_age_minutes as u64 * 60);
                                 let fraction = spot.age_fraction(max_age);
                                 draw_age_ring(ui, fraction);
+
+                                response
                             });
 
                             // Handle click to select
-                            if response.response.interact(egui::Sense::click()).clicked() {
+                            if response.inner.clicked() {
                                 self.selected_spot = Some(spot.clone());
                             }
 
                             // Handle double-click to tune
-                            if response.response.interact(egui::Sense::click()).double_clicked() {
+                            if response.inner.double_clicked() {
                                 self.selected_spot = Some(spot.clone());
                                 self.tune_to_selected();
                             }
