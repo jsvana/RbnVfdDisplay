@@ -14,6 +14,7 @@ pub use omnirig::OmniRigController;
 
 /// Radio operating mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum RadioMode {
     Cw,
     Usb,
@@ -36,7 +37,7 @@ impl RadioMode {
     }
 
     /// Convert to rigctld mode string
-    pub fn to_rigctld_mode(&self) -> &'static str {
+    pub fn to_rigctld_mode(self) -> &'static str {
         match self {
             RadioMode::Cw => "CW",
             RadioMode::Usb => "USB",
@@ -53,6 +54,7 @@ pub type RadioResult<T> = Result<T, RadioError>;
 
 /// Radio controller errors
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum RadioError {
     NotConnected,
     ConnectionFailed(String),
@@ -76,6 +78,7 @@ impl std::fmt::Display for RadioError {
 impl std::error::Error for RadioError {}
 
 /// Trait for radio controllers
+#[allow(dead_code)]
 pub trait RadioController: Send {
     /// Check if connected to the radio
     fn is_connected(&self) -> bool;

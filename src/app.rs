@@ -767,10 +767,8 @@ impl eframe::App for RbnVfdApp {
                         ui.add_space(8.0);
 
                         // Test connection button
-                        if temp.enabled {
-                            if ui.button("Test Connection").clicked() {
-                                test_connection = true;
-                            }
+                        if temp.enabled && ui.button("Test Connection").clicked() {
+                            test_connection = true;
                         }
 
                         ui.add_space(8.0);
