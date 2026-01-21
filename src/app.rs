@@ -28,6 +28,8 @@ pub struct RbnVfdApp {
     radio_controller: Box<dyn RadioController>,
     /// Error message to show in popup
     radio_error: Option<String>,
+    /// Whether to show radio settings dialog
+    show_radio_settings: bool,
 }
 
 impl RbnVfdApp {
@@ -63,6 +65,7 @@ impl RbnVfdApp {
             selected_spot: None,
             radio_controller,
             radio_error: None,
+            show_radio_settings: false,
         }
     }
 
@@ -319,6 +322,23 @@ impl eframe::App for RbnVfdApp {
                     }
                 } else if ui.button("Open").clicked() {
                     self.open_vfd();
+                }
+            });
+
+            ui.add_space(4.0);
+
+            // Radio settings button
+            ui.horizontal(|ui| {
+                ui.label("Radio:");
+                ui.label(if self.radio_controller.is_connected() {
+                    format!("{} connected", self.radio_controller.backend_name())
+                } else if self.config.radio.enabled {
+                    format!("{} disconnected", self.radio_controller.backend_name())
+                } else {
+                    "Not configured".to_string()
+                });
+                if ui.button("Settings...").clicked() {
+                    self.show_radio_settings = true;
                 }
             });
 
