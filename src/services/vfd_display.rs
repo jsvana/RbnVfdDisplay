@@ -59,12 +59,18 @@ impl VfdDisplay {
     }
 
     /// Get available serial ports
+    ///
+    /// Uses catch_unwind to protect against panics in the serialport crate,
+    /// which can happen on some Windows versions/configurations.
     pub fn available_ports() -> Vec<String> {
-        serialport::available_ports()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| p.port_name)
-            .collect()
+        std::panic::catch_unwind(|| {
+            serialport::available_ports()
+                .unwrap_or_default()
+                .into_iter()
+                .map(|p| p.port_name)
+                .collect()
+        })
+        .unwrap_or_default()
     }
 
     /// Open a serial port

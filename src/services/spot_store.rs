@@ -33,7 +33,13 @@ impl SpotStore {
 
     /// Remove spots older than 30 minutes (hard limit for memory management)
     pub fn purge_old_spots(&self) {
-        let cutoff = Instant::now() - Duration::from_secs(30 * 60);
+        // Use checked_sub to avoid panic when system uptime < 30 minutes (Windows
+        // Instant is based on uptime, so subtraction panics if result would be
+        // before system boot)
+        let cutoff = match Instant::now().checked_sub(Duration::from_secs(30 * 60)) {
+            Some(t) => t,
+            None => return, // System uptime < 30 min, nothing to purge
+        };
 
         if let Ok(mut spots) = self.spots.lock() {
             spots.retain(|_, spot| spot.last_spotted >= cutoff);
@@ -42,7 +48,11 @@ impl SpotStore {
 
     /// Get spots filtered by min_snr and max_age, sorted by frequency
     pub fn get_filtered_spots(&self, min_snr: i32, max_age: Duration) -> Vec<AggregatedSpot> {
-        let cutoff = Instant::now() - max_age;
+        // Use checked_sub to avoid panic when system uptime is less than max_age
+        // (Windows Instant is based on uptime)
+        let cutoff = Instant::now()
+            .checked_sub(max_age)
+            .unwrap_or(Instant::now());
 
         if let Ok(spots) = self.spots.lock() {
             let mut result: Vec<_> = spots
@@ -50,7 +60,11 @@ impl SpotStore {
                 .filter(|spot| spot.highest_snr >= min_snr && spot.last_spotted >= cutoff)
                 .cloned()
                 .collect();
-            result.sort_by(|a, b| a.frequency_khz.partial_cmp(&b.frequency_khz).unwrap());
+            result.sort_by(|a, b| {
+                a.frequency_khz
+                    .partial_cmp(&b.frequency_khz)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             result
         } else {
             Vec::new()
@@ -62,7 +76,11 @@ impl SpotStore {
     pub fn get_spots_by_frequency(&self) -> Vec<AggregatedSpot> {
         if let Ok(spots) = self.spots.lock() {
             let mut result: Vec<_> = spots.values().cloned().collect();
-            result.sort_by(|a, b| a.frequency_khz.partial_cmp(&b.frequency_khz).unwrap());
+            result.sort_by(|a, b| {
+                a.frequency_khz
+                    .partial_cmp(&b.frequency_khz)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             result
         } else {
             Vec::new()
